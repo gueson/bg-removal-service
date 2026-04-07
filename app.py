@@ -7,6 +7,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import tempfile
 import os
+import base64
 from datetime import datetime
 
 # 背景去除库
@@ -61,8 +62,15 @@ async def process_image(file: UploadFile = File(...)):
         # 打开图片
         input_image = Image.open(input_path)
         
-        # 去除背景
-        output_image = remove(input_image)
+        # 去除背景，使用 alpha_matting 提升边缘质量和前景保留度
+        output_image = remove(
+            input_image,
+            alpha_matting=True,
+            alpha_matting_foreground_threshold=230,
+            alpha_matting_background_threshold=10,
+            alpha_matting_erode_size=5,
+            post_process_mask=True,
+        )
         
         # 保存结果
         output_path = input_path.replace(os.path.splitext(file.filename)[1], "_transparent.png")
@@ -73,7 +81,7 @@ async def process_image(file: UploadFile = File(...)):
             result_data = f.read()
         
         return {
-            "result_url": f"data:image/png;base64,{result_data.hex()}",
+            "result_url": f"data:image/png;base64,{base64.b64encode(result_data).decode('utf-8')}",
             "original_size": len(content),
             "result_size": len(result_data),
         }
