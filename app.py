@@ -12,11 +12,14 @@ from datetime import datetime
 
 # 背景去除库
 try:
-    from rembg import remove
+    from rembg import remove, new_session
     from PIL import Image
     REMBG_AVAILABLE = True
+    # 使用 bria-rmbg 模型，比 u2net 更好地保留前景内容
+    REMBG_SESSION = new_session('bria-rmbg')
 except ImportError:
     REMBG_AVAILABLE = False
+    REMBG_SESSION = None
 
 app = FastAPI(title="Background Removal Service")
 
@@ -62,9 +65,10 @@ async def process_image(file: UploadFile = File(...)):
         # 打开图片
         input_image = Image.open(input_path)
         
-        # 去除背景，使用 alpha_matting 提升边缘质量和前景保留度
+        # 去除背景，使用 bria-rmbg 模型 + alpha_matting 提升质量和前景保留
         output_image = remove(
             input_image,
+            session=REMBG_SESSION,
             alpha_matting=True,
             alpha_matting_foreground_threshold=230,
             alpha_matting_background_threshold=10,
